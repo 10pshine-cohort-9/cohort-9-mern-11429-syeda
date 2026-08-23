@@ -1,94 +1,302 @@
 
+import { useEffect, useState } from "react";
+
+import {
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+} from "../services/noteService";
+
 import "./Dashboard.css";
 
 const Dashboard = ({ user, onLogout }) => {
+  const [notes, setNotes] = useState([]);
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  const [editingId, setEditingId] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  /* =========================
+     LOAD NOTES
+  ========================= */
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
+
+  const loadNotes = async () => {
+    try {
+      setLoadingNotes(true);
+      setError("");
+
+      const data = await getNotes();
+
+      setNotes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("LOAD NOTES ERROR:", error);
+      setError(error.message || "Failed to load notes");
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
+  /* =========================
+     CREATE / UPDATE NOTE
+  ========================= */
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setMessage("");
+    setError("");
+
+    const cleanTitle = title.trim();
+    const cleanContent = content.trim();
+
+    if (!cleanTitle || !cleanContent) {
+      setError("Title and content are required.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      /* UPDATE */
+      if (editingId) {
+        const updatedNote = await updateNote(
+          editingId,
+          cleanTitle,
+          cleanContent
+        );
+
+        setNotes((currentNotes) =>
+          currentNotes.map((note) =>
+            note._id === editingId ? updatedNote : note
+          )
+        );
+
+        setMessage("Note updated successfully.");
+      }
+
+      /* CREATE */
+      else {
+        const newNote = await createNote(
+          cleanTitle,
+          cleanContent
+        );
+
+        setNotes((currentNotes) => [
+          newNote,
+          ...currentNotes,
+        ]);
+
+        setMessage("Note created successfully.");
+      }
+
+      setTitle("");
+      setContent("");
+      setEditingId(null);
+    } catch (error) {
+      console.error("SAVE NOTE ERROR:", error);
+
+      setError(
+        error.message || "Failed to save note"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     EDIT NOTE
+  ========================= */
+
+  const handleEdit = (note) => {
+    setEditingId(note._id);
+
+    setTitle(note.title);
+    setContent(note.content);
+
+    setMessage("");
+    setError("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  /* =========================
+     DELETE NOTE
+  ========================= */
+
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this note?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setMessage("");
+      setError("");
+
+      await deleteNote(id);
+
+      setNotes((currentNotes) =>
+        currentNotes.filter(
+          (note) => note._id !== id
+        )
+      );
+
+      setMessage("Note deleted successfully.");
+    } catch (error) {
+      console.error("DELETE NOTE ERROR:", error);
+
+      setError(
+        error.message || "Failed to delete note"
+      );
+    }
+  };
+
+  /* =========================
+     CANCEL EDIT
+  ========================= */
+
+  const handleCancel = () => {
+    setEditingId(null);
+
+    setTitle("");
+    setContent("");
+
+    setMessage("");
+    setError("");
+  };
+
+  /* =========================
+     LOGOUT
+  ========================= */
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
+  };
+
   return (
     <div className="dashboard-page">
 
-      <header className="dashboard-header">
+      {/* =========================
+          HEADER
+      ========================= */}
 
-        <div className="dashboard-brand">
+      <header className="dashboard-navbar">
+  <div className="dashboard-brand">
+    <div className="dashboard-logo">
+      N
+    </div>
 
-          <div className="dashboard-logo">
-            N
-          </div>
+    <div>
+      <h2>Notes</h2>
+      <span>Personal Workspace</span>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    className="logout-button"
+    onClick={handleLogout}
+  >
+    Logout
+  </button>
+</header>
+
+
+      {/* =========================
+          MAIN
+      ========================= */}
+
+      <main className="dashboard-container">
+
+
+        {/* =========================
+            WELCOME
+        ========================= */}
+
+        <section className="dashboard-hero">
 
           <div>
-            <h2>Notes</h2>
-            <span>Personal Workspace</span>
-          </div>
 
-        </div>
-
-        <button
-          type="button"
-          className="dashboard-logout"
-          onClick={onLogout}
-        >
-          <span>↪</span>
-          Logout
-        </button>
-
-      </header>
-
-
-      <main className="dashboard-content">
-
-        <section className="welcome-section">
-
-          <div>
-
-            <span className="welcome-label">
+            <span className="dashboard-label">
               DASHBOARD
             </span>
 
             <h1>
               Welcome back,{" "}
-              <span>
+              <span className="highlight">
                 {user?.name || "User"}
               </span>
             </h1>
 
             <p>
-              Your account is authenticated and
-              authorized successfully.
+              Manage your personal notes in
+              one secure workspace.
             </p>
 
           </div>
 
-
-          <div className="welcome-logo">
+          <div className="hero-icon">
             N
           </div>
 
         </section>
 
 
+        {/* =========================
+            MESSAGES
+        ========================= */}
+
+        {error && (
+          <div className="dashboard-message error-message">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="dashboard-message success-message">
+            {message}
+          </div>
+        )}
+
+
+        {/* =========================
+            STATS
+        ========================= */}
+
         <section className="stats-grid">
 
           <div className="stat-card">
 
             <div className="stat-icon">
-              Notes
+              N
             </div>
 
             <div>
               <span>Total Notes</span>
-              <strong>0</strong>
-            </div>
 
-          </div>
-
-
-          <div className="stat-card">
-
-            <div className="stat-icon">
-              Secure
-            </div>
-
-            <div>
-              <span>Authorization</span>
-              <strong>Active</strong>
+              <strong>
+                {notes.length}
+              </strong>
             </div>
 
           </div>
@@ -102,7 +310,27 @@ const Dashboard = ({ user, onLogout }) => {
 
             <div>
               <span>Account</span>
-              <strong>Active</strong>
+
+              <strong>
+                Active
+              </strong>
+            </div>
+
+          </div>
+
+
+          <div className="stat-card">
+
+            <div className="stat-icon">
+              🔒
+            </div>
+
+            <div>
+              <span>Security</span>
+
+              <strong>
+                Protected
+              </strong>
             </div>
 
           </div>
@@ -110,103 +338,230 @@ const Dashboard = ({ user, onLogout }) => {
         </section>
 
 
-        <section className="dashboard-grid">
+        {/* =========================
+            CREATE / EDIT NOTE
+        ========================= */}
 
-          <div className="dashboard-box">
+        <section className="dashboard-card note-editor">
 
-            <div className="box-title">
+          <div className="section-heading">
 
-              <div>
-                <h2>Your Profile</h2>
-                <p>Account information</p>
-              </div>
-
+            <div className="title-icon">
+              {editingId ? "✎" : "+"}
             </div>
 
+            <div>
 
-            <div className="profile-row">
-              <span>Name</span>
-
-              <strong>
-                {user?.name || "User"}
-              </strong>
-            </div>
-
-
-            <div className="profile-row">
-              <span>Email</span>
-
-              <strong>
-                {user?.email || "Not available"}
-              </strong>
-            </div>
-
-
-            <div className="profile-row">
-              <span>Status</span>
-
-              <strong className="active">
-                Authenticated
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div className="dashboard-box">
-
-            <div className="box-title">
-
-              <div>
-                <h2>My Notes</h2>
-                <p>Your notes workspace</p>
-              </div>
-
-            </div>
-
-
-            <div className="empty-state">
-
-              <div className="empty-icon">
-                +
-              </div>
-
-              <h3>
-                Notes workspace ready
-              </h3>
+              <h2>
+                {editingId
+                  ? "Edit Note"
+                  : "Create a Note"}
+              </h2>
 
               <p>
-                Note creation will be added
-                in the next feature.
+                {editingId
+                  ? "Update your existing note"
+                  : "Add a new note to your workspace"}
               </p>
 
             </div>
 
           </div>
 
+
+          <form onSubmit={handleSubmit}>
+
+            {/* TITLE */}
+
+            <input
+              type="text"
+              value={title}
+              placeholder="Note title"
+              onChange={(event) =>
+                setTitle(event.target.value)
+              }
+            />
+
+
+            {/* CONTENT */}
+
+            <textarea
+              value={content}
+              placeholder="Write your note here..."
+              onChange={(event) =>
+                setContent(event.target.value)
+              }
+            />
+
+
+            {/* BUTTONS */}
+
+            <div className="note-form-actions">
+
+              <button
+                type="submit"
+                className="primary-note-button"
+                disabled={loading}
+              >
+                {loading
+                  ? "Saving..."
+                  : editingId
+                  ? "Update Note"
+                  : "Create Note"}
+              </button>
+
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="cancel-note-button"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+              )}
+
+            </div>
+
+          </form>
+
         </section>
 
 
-        <div className="security-banner">
+        {/* =========================
+            MY NOTES
+        ========================= */}
 
-          <div>
+        <section className="dashboard-card notes-section">
 
-            <strong>
-              Authentication & Authorization
-            </strong>
+          <div className="section-heading">
 
-            <p>
-              You are securely logged in using
-              your JWT authentication token.
-            </p>
+            <div className="title-icon">
+              N
+            </div>
+
+            <div>
+
+              <h2>
+                My Notes
+              </h2>
+
+              <p>
+                Your personal notes
+              </p>
+
+            </div>
 
           </div>
 
-          <span>
-            SECURE
-          </span>
 
-        </div>
+          {/* LOADING */}
+
+          {loadingNotes && (
+            <div className="notes-empty">
+
+              <div className="empty-icon">
+                ...
+              </div>
+
+              <h3>
+                Loading notes...
+              </h3>
+
+              <p>
+                Please wait.
+              </p>
+
+            </div>
+          )}
+
+
+          {/* EMPTY */}
+
+          {!loadingNotes &&
+            notes.length === 0 && (
+              <div className="notes-empty">
+
+                <div className="empty-icon">
+                  +
+                </div>
+
+                <h3>
+                  No notes yet
+                </h3>
+
+                <p>
+                  Create your first note above.
+                </p>
+
+              </div>
+            )}
+
+
+          {/* NOTES */}
+
+          {!loadingNotes &&
+            notes.length > 0 && (
+              <div className="notes-list">
+
+                {notes.map((note) => (
+                  <div
+                    className="note-card"
+                    key={note._id}
+                  >
+
+                    <div className="note-card-content">
+
+                      <h3>
+                        {note.title}
+                      </h3>
+
+                      <p>
+                        {note.content}
+                      </p>
+
+                      <small>
+                        {note.createdAt
+                          ? new Date(
+                              note.createdAt
+                            ).toLocaleString()
+                          : ""}
+                      </small>
+
+                    </div>
+
+
+                    <div className="note-actions">
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEdit(note)
+                        }
+                      >
+                        Edit
+                      </button>
+
+
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={() =>
+                          handleDelete(note._id)
+                        }
+                      >
+                        Delete
+                      </button>
+
+                    </div>
+
+                  </div>
+                ))}
+
+              </div>
+            )}
+
+        </section>
 
       </main>
 

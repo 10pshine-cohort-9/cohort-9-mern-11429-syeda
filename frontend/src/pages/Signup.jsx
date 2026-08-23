@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { signupUser } from "../services/authService";
 import "./Signup.css";
+import { signupUser } from "../services/authService";
 
-const Signup = ({ onLogin, onSignupSuccess }) => {
+const Signup = ({ onSignupSuccess, onLogin }) => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -15,23 +15,31 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
-    setFormData({
-      ...formData,
-      [event.target.name]: event.target.value,
-    });
+    const { name, value } = event.target;
 
-    setError("");
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.password
-    ) {
-      setError("Please fill all required fields.");
+    setError("");
+
+    if (!formData.name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!formData.password) {
+      setError("Password is required.");
       return;
     }
 
@@ -45,27 +53,20 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
       return;
     }
 
+    setLoading(true);
+
     try {
-      setLoading(true);
-      setError("");
+      const data = await signupUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
 
-      const data = await signupUser(formData);
-
-      console.log("Signup successful:", data);
-
-      /*
-       * Signup endpoint may only create account.
-       * In that case send user to login.
-       */
-      if (data.token && data.user) {
-        onSignupSuccess(data);
-      } else {
-        onLogin();
-      }
-
-    } catch (error) {
-      console.error("SIGNUP ERROR:", error);
-      setError(error.message || "Signup failed.");
+      onSignupSuccess(data);
+    } catch (err) {
+      setError(
+        err.message || "Unable to create account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,6 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
 
   return (
     <div className="signup-page">
-
       <div className="signup-card">
 
         <div className="signup-logo">
@@ -84,15 +84,12 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
           GET STARTED
         </span>
 
-        <h1>
-          Create your account
-        </h1>
+        <h1>Create your account</h1>
 
         <p className="signup-subtitle">
-          Create your account and start using your
+          Fill in your details to create your
           personal Notes workspace.
         </p>
-
 
         {error && (
           <div className="signup-error">
@@ -100,95 +97,88 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
           </div>
         )}
 
-
         <form onSubmit={handleSubmit}>
 
           <div className="signup-field">
-
-            <label>
-              Full Name
+            <label htmlFor="signup-name">
+              Name
             </label>
 
             <input
-              type="text"
+              id="signup-name"
               name="name"
-              placeholder="Your name"
+              type="text"
               value={formData.name}
               onChange={handleChange}
+              placeholder="Enter your name"
+              autoComplete="name"
+              required
             />
-
           </div>
 
-
           <div className="signup-field">
-
-            <label>
+            <label htmlFor="signup-email">
               Email
             </label>
 
             <input
-              type="email"
+              id="signup-email"
               name="email"
-              placeholder="you@example.com"
+              type="email"
               value={formData.email}
               onChange={handleChange}
+              placeholder="Enter your email"
+              autoComplete="email"
+              required
             />
-
           </div>
 
-
           <div className="signup-field">
-
-            <label>
+            <label htmlFor="signup-password">
               Password
             </label>
 
             <input
-              type="password"
+              id="signup-password"
               name="password"
-              placeholder="Minimum 6 characters"
+              type="password"
               value={formData.password}
               onChange={handleChange}
+              placeholder="Create a password"
+              autoComplete="new-password"
+              required
             />
-
           </div>
 
-
           <div className="signup-field">
-
-            <label>
+            <label htmlFor="signup-confirm-password">
               Confirm Password
             </label>
 
             <input
-              type="password"
+              id="signup-confirm-password"
               name="confirmPassword"
-              placeholder="Repeat your password"
+              type="password"
               value={formData.confirmPassword}
               onChange={handleChange}
+              placeholder="Confirm your password"
+              autoComplete="new-password"
+              required
             />
-
           </div>
-
 
           <button
             type="submit"
             className="signup-button"
             disabled={loading}
           >
-            {loading
-              ? "Creating account..."
-              : "Create Account"}
+            {loading ? "Creating account..." : "Create Account"}
           </button>
 
         </form>
 
-
         <div className="signup-switch">
-
-          <span>
-            Already have an account?
-          </span>
+          <span>Already have an account?</span>
 
           <button
             type="button"
@@ -196,11 +186,9 @@ const Signup = ({ onLogin, onSignupSuccess }) => {
           >
             Sign in
           </button>
-
         </div>
 
       </div>
-
     </div>
   );
 };

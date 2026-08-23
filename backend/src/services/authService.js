@@ -1,63 +1,114 @@
 
-  const API_URL = "http://localhost:5000/api/auth";
+const bcrypt = require("bcryptjs");
+const User = require("../models/User");
+const generateToken = require("../utils/generateToken");
 
-export async function signupUser(userData) {
-  const response = await fetch(`${API_URL}/signup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(userData),
-  });
+// =========================
+// FIND USER BY EMAIL
+// =========================
+const findUserByEmail = async (email) => {
+  return User.findOne({ email });
+};
 
-  const data = await response.json();
+// =========================
+// SIGNUP
+// =========================
+const signupUser = async ({
+  name,
+  email,
+  password,
+}) => {
+  try {
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
 
-  if (!response.ok) {
-    throw new Error(data.message || "Signup failed");
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    const token = generateToken(user._id);
+
+    return {
+      message: "Signup successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  } catch (error) {
+    // Keep duplicate-key error available to controller
+    if (error.code === 11000) {
+      throw error;
+    }
+
+    throw new Error("Signup failed");
   }
+};
 
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("user", JSON.stringify(data.user));
+// =========================
+// LOGIN
+// =========================
+const loginUser = async ({
+  email,
+  password,
+}) => {
+  try {
+    const user = await User.findOne({ email });
 
-  return data;
-}
+    if (!user) {
+      throw new Error("Invalid email or password");
+    }
 
-export async function loginUser(credentials) {
-  const response = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(credentials),
-  });
+    const passwordMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
-  const data = await response.json();
+    if (!passwordMatch) {
+      throw new Error("Invalid email or password");
+    }
 
-  if (!response.ok) {
-    throw new Error(data.message || "Login failed");
+    const token = generateToken(user._id);
+
+    return {
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  } catch (error) {
+    if (
+      error.message ===
+      "Invalid email or password"
+    ) {
+      throw error;
+    }
+
+    throw new Error("Login failed");
   }
+};
 
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("user", JSON.stringify(data.user));
+// =========================
+// GET USER BY ID
+// =========================
+const getUserById = async (userId) => {
+  return User.findById(userId).select(
+    "-password"
+  );
+};
 
-  return data;
-}
-
-export function logoutUser() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-}
-
-export function getToken() {
-  return localStorage.getItem("token");
-}
-
-export function getCurrentUser() {
-  const user = localStorage.getItem("user");
-
-  if (!user) {
-    return null;
-  }
-
-  return JSON.parse(user);
-}
+module.exports = {
+  findUserByEmail,
+  signupUser,
+  loginUser,
+  getUserById,
+};

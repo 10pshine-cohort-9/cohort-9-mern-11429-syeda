@@ -1,35 +1,38 @@
 
 import { useEffect } from "react";
-import { logoutUser } from "../services/authService";
 import "./Logout.css";
+
+import { logoutUser } from "../services/authService";
 
 const Logout = ({ onLogout }) => {
   useEffect(() => {
-    // Remove token and user from localStorage
     logoutUser();
+  }, []);
 
-    // Go back to login
-    if (onLogout) {
-      onLogout();
-    }
-  }, [onLogout]);
+  const handleConfirmLogout = () => {
+    onLogout();
+  };
 
   return (
     <div className="logout-page">
       <div className="logout-card">
-        <div className="logout-icon">✓</div>
+        <div className="logout-icon">
+          N
+        </div>
 
-        <h1>You've been logged out</h1>
+        <h1>Ready to leave?</h1>
 
         <p>
-          Your account has been safely logged out.
+          Your local authentication session has
+          been cleared.
         </p>
 
         <button
           type="button"
-          onClick={onLogout}
+          className="logout-button"
+          onClick={handleConfirmLogout}
         >
-          Back to Sign In
+          Continue to Login
         </button>
       </div>
     </div>

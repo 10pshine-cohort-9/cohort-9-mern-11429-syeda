@@ -1,79 +1,67 @@
 
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-
-const generateToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-};
+const authService = require("../services/authService");
 
 // =========================
-// SIGN UP
+// SIGNUP
 // =========================
 const signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password) {
+    // Validate types and required values before using
+    // trim() or length.
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         message: "Name, email and password are required",
       });
     }
 
-    // Validate password length
+    // Preserve normalized email flow
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Preserve password-length validation
     if (password.length < 6) {
       return res.status(400).json({
         message: "Password must be at least 6 characters",
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check whether user already exists
-    const existingUser = await User.findOne({
-      email: normalizedEmail,
-    });
+    const existingUser = await authService.findUserByEmail(
+      normalizedEmail
+    );
 
     if (existingUser) {
       return res.status(409).json({
-        message: "User with this email already exists",
+        message: "Email already registered",
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await User.create({
+    const result = await authService.signupUser({
       name: name.trim(),
       email: normalizedEmail,
-      password: hashedPassword,
+      password,
     });
 
-    // Generate JWT
-    const token = generateToken(user._id);
-
-    return res.status(201).json({
-      message: "Account created successfully",
-
-      token,
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-    });
+    return res.status(201).json(result);
   } catch (error) {
-    console.error("Signup error:", error.message);
+    // MongoDB duplicate-key error
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Email already registered",
+      });
+    }
+
+    console.error("Signup error:", error);
 
     return res.status(500).json({
-      message: "Server error during signup",
+      message: "Server error",
     });
   }
 };
@@ -85,58 +73,63 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // Find user
-    const user = await User.findOne({
+    const result = await authService.loginUser({
       email: normalizedEmail,
-    });
-
-    // Don't reveal whether email exists
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    // Compare password with hashed password
-    const passwordMatches = await bcrypt.compare(
       password,
-      user.password
-    );
+    });
 
-    if (!passwordMatches) {
+    return res.status(200).json(result);
+  } catch (error) {
+    if (
+      error.message === "Invalid email or password"
+    ) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
-    // Generate JWT
-    const token = generateToken(user._id);
-
-    return res.status(200).json({
-      message: "Login successful",
-
-      token,
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error.message);
+    console.error("Login error:", error);
 
     return res.status(500).json({
-      message: "Server error during login",
+      message: "Server error",
+    });
+  }
+};
+
+// =========================
+// GET CURRENT USER
+// =========================
+const getMe = async (req, res) => {
+  try {
+    const user = await authService.getUserById(req.user);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      user,
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
     });
   }
 };
@@ -144,4 +137,5 @@ const login = async (req, res) => {
 module.exports = {
   signup,
   login,
+  getMe,
 };

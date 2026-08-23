@@ -4,24 +4,34 @@ const express = require("express");
 const {
   signup,
   login,
+  getMe,
 } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
+const authRateLimiter = require("../middleware/rateLimitMiddleware");
+
 const router = express.Router();
 
-console.log("signup:", signup);
-console.log("login:", login);
+// Public signup route with rate limiting
+router.post(
+  "/signup",
+  authRateLimiter,
+  signup
+);
 
-router.post("/signup", signup);
-router.post("/login", login);
+// Public login route with rate limiting
+router.post(
+  "/login",
+  authRateLimiter,
+  login
+);
 
-// Protected route
-router.get("/me", authMiddleware, (req, res) => {
-  res.status(200).json({
-    message: "Authorization successful",
-    userId: req.user,
-  });
-});
+// Protected current-user route
+router.get(
+  "/me",
+  authMiddleware,
+  getMe
+);
 
 module.exports = router;

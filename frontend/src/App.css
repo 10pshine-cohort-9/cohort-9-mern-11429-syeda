@@ -301,7 +301,7 @@ button {
 .profile-info strong {
   color: #344054;
   font-size: 14px;
-  word-break: break-word;
+  overflow-wrap:anywhere;
 }
 
 /* NOTES */
