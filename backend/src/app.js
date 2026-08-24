@@ -1,28 +1,66 @@
 
 const express = require("express");
 const cors = require("cors");
+
 const authRoutes = require("./routes/authRoutes");
+const noteRoutes = require("./routes/noteRoutes");
 
 const app = express();
 
-// Allow frontend to communicate with backend
+// =========================
+// CORS CONFIGURATION
+// =========================
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests without an origin
+      // (Postman, server-to-server, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   })
 );
 
-// Parse JSON request bodies
+// =========================
+// MIDDLEWARE
+// =========================
+
 app.use(express.json());
 
-// Test route
+// =========================
+// TEST ROUTE
+// =========================
+
 app.get("/", (req, res) => {
   res.json({
     message: "Notes API is running",
   });
 });
 
-// Authentication routes
+// =========================
+// AUTHENTICATION ROUTES
+// =========================
+
 app.use("/api/auth", authRoutes);
+
+// =========================
+// NOTES ROUTES
+// =========================
+
+app.use("/api/notes", noteRoutes);
 
 module.exports = app;
