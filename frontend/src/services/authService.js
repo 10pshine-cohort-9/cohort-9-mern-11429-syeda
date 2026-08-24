@@ -24,6 +24,23 @@ export const signupUser = async (userData) => {
     throw new Error(data.message || "Signup failed");
   }
 
+  if (!data.token) {
+    throw new Error(
+      "Account created, but authentication token was not received."
+    );
+  }
+
+  // Save token after successful signup
+  localStorage.setItem("token", data.token);
+
+  // Save user information
+  if (data.user) {
+    localStorage.setItem(
+      "user",
+      JSON.stringify(data.user)
+    );
+  }
+
   return data;
 };
 
@@ -33,43 +50,43 @@ export const signupUser = async (userData) => {
 ========================= */
 
 export const loginUser = async (userData) => {
-  try {
-    const response = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: userData.email.trim(),
-        password: userData.password,
-      }),
-    });
+  const response = await fetch(`${API_URL}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: userData.email.trim(),
+      password: userData.password,
+    }),
+  });
 
-    const data = await response.json();
+  const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || "Invalid email or password");
-    }
-
-    if (!data.token) {
-      throw new Error("Login successful but token was not received");
-    }
-
-    localStorage.setItem("token", data.token);
-
-    if (data.user) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-      );
-    }
-
-    return data;
-
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Invalid email or password"
+    );
   }
+
+  if (!data.token) {
+    throw new Error(
+      "Login successful but token was not received"
+    );
+  }
+
+  // Save token after successful login
+  localStorage.setItem("token", data.token);
+
+  // Save user information
+  if (data.user) {
+    localStorage.setItem(
+      "user",
+      JSON.stringify(data.user)
+    );
+  }
+
+  return data;
 };
 
 
@@ -107,7 +124,9 @@ export const getStoredUser = () => {
 ========================= */
 
 export const isAuthenticated = () => {
-  return Boolean(localStorage.getItem("token"));
+  return Boolean(
+    localStorage.getItem("token")
+  );
 };
 
 

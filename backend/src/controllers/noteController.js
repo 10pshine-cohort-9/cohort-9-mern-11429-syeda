@@ -1,58 +1,68 @@
 
 const Note = require("../models/Note");
 
-// Create a note
+const isEmptyContent = (content) => {
+  if (typeof content !== "string") {
+    return true;
+  }
+
+  const text = content
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+
+  return text.length === 0;
+};
+
 const createNote = async (req, res) => {
   try {
     const { title, content } = req.body;
 
-    if (!title || !content) {
+    console.log("CREATE NOTE BODY:", req.body);
+
+    if (!title || !title.trim() || isEmptyContent(content)) {
       return res.status(400).json({
         message: "Title and content are required",
       });
     }
 
     const note = await Note.create({
-      title,
+      title: title.trim(),
       content,
       user: req.user,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Note created successfully",
       note,
     });
   } catch (error) {
-    console.error("Create note error:", error);
+    console.error("CREATE NOTE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to create note",
     });
   }
 };
 
-
-// Get all notes for logged-in user
 const getNotes = async (req, res) => {
   try {
     const notes = await Note.find({
       user: req.user,
     }).sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       notes,
     });
   } catch (error) {
-    console.error("Get notes error:", error);
+    console.error("GET NOTES ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch notes",
     });
   }
 };
 
-
-// Get a single note
 const getNoteById = async (req, res) => {
   try {
     const note = await Note.findOne({
@@ -66,25 +76,26 @@ const getNoteById = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       note,
     });
   } catch (error) {
-    console.error("Get note error:", error);
+    console.error("GET NOTE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch note",
     });
   }
 };
 
-
-// Update a note
 const updateNote = async (req, res) => {
   try {
     const { title, content } = req.body;
 
-    if (!title || !content) {
+    console.log("UPDATE NOTE ID:", req.params.id);
+    console.log("UPDATE NOTE BODY:", req.body);
+
+    if (!title || !title.trim() || isEmptyContent(content)) {
       return res.status(400).json({
         message: "Title and content are required",
       });
@@ -96,8 +107,8 @@ const updateNote = async (req, res) => {
         user: req.user,
       },
       {
-        title,
-        content,
+        title: title.trim(),
+        content: content,
       },
       {
         new: true,
@@ -111,21 +122,19 @@ const updateNote = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Note updated successfully",
       note,
     });
   } catch (error) {
-    console.error("Update note error:", error);
+    console.error("UPDATE NOTE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update note",
     });
   }
 };
 
-
-// Delete a note
 const deleteNote = async (req, res) => {
   try {
     const note = await Note.findOneAndDelete({
@@ -139,18 +148,17 @@ const deleteNote = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Note deleted successfully",
     });
   } catch (error) {
-    console.error("Delete note error:", error);
+    console.error("DELETE NOTE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to delete note",
     });
   }
 };
-
 
 module.exports = {
   createNote,
