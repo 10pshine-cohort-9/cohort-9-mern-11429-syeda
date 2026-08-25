@@ -1,6 +1,10 @@
 
 const express = require("express");
 const cors = require("cors");
+const pinoHttp = require("pino-http");
+
+const logger = require("./config/logger");
+const errorMiddleware = require("./middleware/errorMiddleware");
 
 const authRoutes = require("./routes/authRoutes");
 const noteRoutes = require("./routes/noteRoutes");
@@ -36,16 +40,28 @@ app.use(
 );
 
 // =========================
-// MIDDLEWARE
+// LOGGER
+// =========================
+
+app.use(
+  pinoHttp({
+    logger,
+  })
+);
+
+// =========================
+// BODY PARSER
 // =========================
 
 app.use(express.json());
 
 // =========================
-// TEST ROUTE
+// HEALTH CHECK
 // =========================
 
 app.get("/", (req, res) => {
+  req.log.info("Health check requested");
+
   res.json({
     message: "Notes API is running",
   });
@@ -62,5 +78,29 @@ app.use("/api/auth", authRoutes);
 // =========================
 
 app.use("/api/notes", noteRoutes);
+
+// =========================
+// 404 HANDLER
+// =========================
+
+app.use((req, res, next) => {
+  const error = new Error(
+    `Route not found: ${req.method} ${req.originalUrl}`
+  );
+
+  error.statusCode = 404;
+
+  next(error);
+});
+
+// =========================
+// GLOBAL ERROR HANDLER
+// =========================
+
+app.use(errorMiddleware);
+
+// =========================
+// EXPORT APP
+// =========================
 
 module.exports = app;
