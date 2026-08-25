@@ -1,129 +1,170 @@
 
-const API_URL = "http://localhost:5000/api/auth";
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-/* =========================
-   SIGNUP
-========================= */
+// =========================
+// GENERATE JWT
+// =========================
 
-export const signupUser = async (userData) => {
-  const response = await fetch(`${API_URL}/signup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: userData.name.trim(),
-      email: userData.email.trim(),
-      password: userData.password,
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Signup failed");
-  }
-
-  if (!data.token) {
-    throw new Error(
-      "Signup successful but token was not received"
-    );
-  }
-
-  localStorage.setItem("token", data.token);
-
-  if (data.user) {
-    localStorage.setItem(
-      "user",
-      JSON.stringify(data.user)
-    );
-  }
-
-  return data;
+const generateToken = (userId) => {
+  return jwt.sign(
+    { userId },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1d",
+    }
+  );
 };
 
-/* =========================
-   LOGIN
-========================= */
+// =========================
+// SIGN UP
+// =========================
 
-export const loginUser = async (userData) => {
-  const response = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: userData.email.trim(),
-      password: userData.password,
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Invalid email or password"
-    );
-  }
-
-  if (!data.token) {
-    throw new Error(
-      "Login successful but token was not received"
-    );
-  }
-
-  localStorage.setItem("token", data.token);
-
-  if (data.user) {
-    localStorage.setItem(
-      "user",
-      JSON.stringify(data.user)
-    );
-  }
-
-  return data;
-};
-
-/* =========================
-   GET TOKEN
-========================= */
-
-export const getToken = () => {
-  return localStorage.getItem("token");
-};
-
-/* =========================
-   GET USER
-========================= */
-
-export const getStoredUser = () => {
-  const user = localStorage.getItem("user");
-
-  if (!user) {
-    return null;
-  }
-
+const signup = async (req, res) => {
   try {
-    return JSON.parse(user);
-  } catch {
-    localStorage.removeItem("user");
-    return null;
+    const { name, email, password } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "Name, email and password are required",
+      });
+    }
+
+    // Validate password
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Normalize email
+    const normalizedEmail = email
+      .toLowerCase()
+      .trim();
+
+    // Check existing user
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "User with this email already exists",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
+
+    // Create user
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    return res.status(201).json({
+      message: "Account created successfully",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Signup error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Server error during signup",
+    });
   }
 };
 
-/* =========================
-   AUTHENTICATION CHECK
-========================= */
+// =========================
+// LOGIN
+// =========================
 
-export const isAuthenticated = () => {
-  return Boolean(localStorage.getItem("token"));
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    // Normalize email
+    const normalizedEmail = email
+      .toLowerCase()
+      .trim();
+
+    // Find user
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // Compare password
+    const passwordMatches =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Login error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Server error during login",
+    });
+  }
 };
 
-/* =========================
-   LOGOUT
-========================= */
+// =========================
+// EXPORT CONTROLLERS
+// =========================
 
-export const logoutUser = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+module.exports = {
+  signup,
+  login,
 };
