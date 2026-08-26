@@ -1,24 +1,21 @@
 
 name: SonarQube Analysis
 
-'on':
+on:
   push:
     branches:
       - main
-      - develop
       - feature/unit-testing
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
+    types: [opened, synchronize, reopened]
 
 jobs:
-  sonar:
+  sonarqube:
+    name: SonarQube
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -27,4 +24,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
+        with:
+          args: >
+            -Dsonar.projectKey=SyedaNoorBukhari_cohort-9-mern-11429-syeda
+            -Dsonar.organization=syedanoorbukhari
