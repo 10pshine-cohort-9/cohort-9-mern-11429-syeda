@@ -4,13 +4,14 @@ name: SonarQube Analysis
 on:
   push:
     branches:
-      - main
-      - feature/unit-testing
-
+      - develop
   pull_request:
-    types: [opened, synchronize, reopened]
-
-  workflow_dispatch:
+    branches:
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 jobs:
   sonarqube:
@@ -24,10 +25,6 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=SyedaNoorBukhari_cohort-9-mern-11429-syeda
-            -Dsonar.organization=syedanoorbukhari
