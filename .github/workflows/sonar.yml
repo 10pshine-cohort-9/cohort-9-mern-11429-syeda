@@ -6,8 +6,11 @@ on:
     branches:
       - main
       - feature/unit-testing
+
   pull_request:
     types: [opened, synchronize, reopened]
+
+  workflow_dispatch:
 
 jobs:
   sonarqube:
